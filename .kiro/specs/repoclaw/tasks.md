@@ -22,11 +22,11 @@ The implementation uses TypeScript with Next.js 14, LangGraph for agent orchestr
     - Extract owner and repo name from valid URLs
     - _Requirements: 1.2_
   
-  - [ ] 2.2 Write property test for URL validation
+  - [x] 2.2 Write property test for URL validation
     - **Property 1: GitHub URL Validation**
     - **Validates: Requirements 1.2**
   
-  - [ ] 2.3 Implement GitHub OAuth flow
+  - [x] 2.3 Implement GitHub OAuth flow
     - Create API route for initiating OAuth (/api/repo/connect)
     - Handle OAuth callback and token exchange
     - Store tokens securely in Vercel KV with session ID
@@ -36,7 +36,7 @@ The implementation uses TypeScript with Next.js 14, LangGraph for agent orchestr
     - **Property 2: OAuth Trigger for Valid URLs**
     - **Validates: Requirements 1.3**
   
-  - [ ] 2.5 Implement repository metadata retrieval
+  - [x] 2.5 Implement repository metadata retrieval
     - Use Octokit to fetch repo metadata (owner, name, default branch, visibility)
     - Store metadata in session state
     - _Requirements: 1.5_
