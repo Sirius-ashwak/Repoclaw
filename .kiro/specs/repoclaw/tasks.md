@@ -453,7 +453,7 @@ The implementation uses TypeScript with Next.js 14, LangGraph for agent orchestr
     - Show per-agent timeout warnings
     - _Requirements: 12.6_
 
-- [ ] 15. Checkpoint - Integration testing
+- [x] 15. Checkpoint - Integration testing
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 16. Implement export functionality
