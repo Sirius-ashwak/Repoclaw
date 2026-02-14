@@ -316,46 +316,46 @@ The implementation uses TypeScript with Next.js 14, LangGraph for agent orchestr
     - Handle mode selection and pass to pipeline
     - _Requirements: 3.1_
 
-- [ ] 11. Implement API routes
-  - [ ] 11.1 Create POST /api/repo/connect route
+- [x] 11. Implement API routes
+  - [x] 11.1 Create POST /api/repo/connect route
     - Handle repository URL submission
     - Initiate OAuth flow
     - Create session in Vercel KV
     - _Requirements: 1.1, 1.2, 1.3_
   
-  - [ ] 11.2 Create POST /api/pipeline/start route
+  - [x] 11.2 Create POST /api/pipeline/start route
     - Validate session exists
     - Initialize SupervisorAgent with mode
     - Create pipeline state in Vercel KV
     - Return SSE endpoint
     - _Requirements: 3.5, 11.1_
   
-  - [ ] 11.3 Create GET /api/pipeline/stream route
+  - [x] 11.3 Create GET /api/pipeline/stream route
     - Establish SSE connection
     - Stream pipeline events (agent start/complete/fail, artifacts, approval gates)
     - Handle client reconnection
     - _Requirements: 8.7_
   
-  - [ ] 11.4 Write property test for progress board state reflection
+  - [x] 11.4 Write property test for progress board state reflection
     - **Property 20: Progress Board State Reflection**
     - **Validates: Requirements 8.2, 8.3, 8.5, 8.7**
   
-  - [ ] 11.5 Create POST /api/approval/respond route
+  - [x] 11.5 Create POST /api/approval/respond route
     - Handle approval/rejection at gates
     - Update pipeline state
     - Trigger regeneration or resume pipeline
     - _Requirements: 4.7, 7.4, 7.5_
   
-  - [ ] 11.6 Write property test for PR creation after approval
+  - [x] 11.6 Write property test for PR creation after approval
     - **Property 18: PR Creation After Approval**
     - **Validates: Requirements 7.5**
   
-  - [ ] 11.7 Create POST /api/export route
+  - [x] 11.7 Create POST /api/export route
     - Handle PDF, PR link, and Telegram exports
     - Bundle artifacts appropriately
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
   
-  - [ ] 11.8 Write property test for export completeness
+  - [x] 11.8 Write property test for export completeness
     - **Property 21: Export Completeness**
     - **Validates: Requirements 9.2, 9.3, 9.4, 9.5**
 

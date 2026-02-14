@@ -54,6 +54,9 @@ export async function createPipeline(pipeline: PipelineState): Promise<void> {
   await kv.set(key, pipeline, { ex: PIPELINE_TTL });
 }
 
+// Alias for createPipeline
+export const createPipelineState = createPipeline;
+
 export async function getPipeline(pipelineId: string): Promise<PipelineState | null> {
   const key = `${PIPELINE_PREFIX}${pipelineId}`;
   return await kv.get<PipelineState>(key);
