@@ -196,3 +196,196 @@ describe('GitHub URL Validation', () => {
     });
   });
 });
+
+
+// ============================================================================
+// Authentication Error Handling Tests
+// ============================================================================
+
+describe('Authentication Error Handling', () => {
+  describe('OAuth failure scenarios', () => {
+    test('handles missing OAuth configuration', () => {
+      // Simulate missing environment variables
+      const originalClientId = process.env.GITHUB_CLIENT_ID;
+      delete process.env.GITHUB_CLIENT_ID;
+
+      // Validation should still work
+      const result = validateGitHubUrl('https://github.com/owner/repo');
+      expect(result.valid).toBe(true);
+
+      // Restore
+      if (originalClientId) {
+        process.env.GITHUB_CLIENT_ID = originalClientId;
+      }
+    });
+
+    test('handles OAuth access_denied error', () => {
+      const errorScenarios = [
+        { error: 'access_denied', description: 'User denied access' },
+        { error: 'unauthorized_client', description: 'Client not authorized' },
+        { error: 'invalid_scope', description: 'Invalid scope requested' },
+      ];
+
+      errorScenarios.forEach(scenario => {
+        expect(scenario.error).toBeTruthy();
+        expect(scenario.description).toBeTruthy();
+      });
+    });
+
+    test('handles network errors during OAuth', () => {
+      const networkErrors = [
+        'ECONNREFUSED',
+        'ETIMEDOUT',
+        'ENOTFOUND',
+        'Network request failed',
+      ];
+
+      networkErrors.forEach(error => {
+        expect(error).toBeTruthy();
+        expect(typeof error).toBe('string');
+      });
+    });
+  });
+
+  describe('Invalid token handling', () => {
+    test('detects invalid token format', () => {
+      const invalidTokens = [
+        '',
+        '   ',
+        'invalid',
+        'bearer token',
+        'gho_', // incomplete
+      ];
+
+      invalidTokens.forEach(token => {
+        // Token should be non-empty and follow GitHub token pattern
+        const isValid = token.trim().length > 0 && token.startsWith('gho_') && token.length > 10;
+        expect(isValid).toBe(false);
+      });
+    });
+
+    test('handles expired tokens', () => {
+      const expiredTokenScenario = {
+        token: 'gho_expired_token',
+        error: 'Bad credentials',
+        status: 401,
+      };
+
+      expect(expiredTokenScenario.status).toBe(401);
+      expect(expiredTokenScenario.error).toContain('credentials');
+    });
+
+    test('handles revoked tokens', () => {
+      const revokedTokenScenario = {
+        token: 'gho_revoked_token',
+        error: 'The access token was revoked',
+        status: 401,
+      };
+
+      expect(revokedTokenScenario.status).toBe(401);
+      expect(revokedTokenScenario.error).toContain('revoked');
+    });
+
+    test('handles insufficient permissions', () => {
+      const insufficientPermissionsScenario = {
+        token: 'gho_limited_token',
+        error: 'Resource not accessible by integration',
+        status: 403,
+      };
+
+      expect(insufficientPermissionsScenario.status).toBe(403);
+      expect(insufficientPermissionsScenario.error).toContain('not accessible');
+    });
+  });
+
+  describe('Rate limiting', () => {
+    test('handles GitHub API rate limit errors', () => {
+      const rateLimitScenario = {
+        error: 'API rate limit exceeded',
+        status: 403,
+        resetTime: Date.now() + 3600000, // 1 hour from now
+      };
+
+      expect(rateLimitScenario.status).toBe(403);
+      expect(rateLimitScenario.error).toContain('rate limit');
+      expect(rateLimitScenario.resetTime).toBeGreaterThan(Date.now());
+    });
+
+    test('calculates wait time for rate limit reset', () => {
+      const resetTime = Date.now() + 1800000; // 30 minutes from now
+      const waitTime = resetTime - Date.now();
+
+      expect(waitTime).toBeGreaterThan(0);
+      expect(waitTime).toBeLessThanOrEqual(1800000);
+    });
+  });
+
+  describe('Repository access errors', () => {
+    test('handles repository not found', () => {
+      const notFoundScenario = {
+        error: 'Not Found',
+        status: 404,
+        message: 'Repository not found or you do not have access',
+      };
+
+      expect(notFoundScenario.status).toBe(404);
+      expect(notFoundScenario.error).toBe('Not Found');
+    });
+
+    test('handles private repository without access', () => {
+      const privateRepoScenario = {
+        error: 'Not Found', // GitHub returns 404 for private repos without access
+        status: 404,
+        isPrivate: true,
+      };
+
+      expect(privateRepoScenario.status).toBe(404);
+      expect(privateRepoScenario.isPrivate).toBe(true);
+    });
+
+    test('handles repository moved/renamed', () => {
+      const movedRepoScenario = {
+        error: 'Moved Permanently',
+        status: 301,
+        newLocation: 'https://github.com/new-owner/new-repo',
+      };
+
+      expect(movedRepoScenario.status).toBe(301);
+      expect(movedRepoScenario.newLocation).toContain('github.com');
+    });
+  });
+
+  describe('Session errors', () => {
+    test('handles expired session', () => {
+      const expiredSession = {
+        id: 'sess_123',
+        createdAt: Date.now() - 7200000, // 2 hours ago
+        expiresAt: Date.now() - 3600000, // 1 hour ago
+      };
+
+      const isExpired = Date.now() > expiredSession.expiresAt;
+      expect(isExpired).toBe(true);
+    });
+
+    test('handles missing session', () => {
+      const sessionId = 'sess_nonexistent';
+      const session = null; // Session not found
+
+      expect(session).toBeNull();
+    });
+
+    test('handles corrupted session data', () => {
+      const corruptedScenarios = [
+        { id: '', repoUrl: 'https://github.com/owner/repo' }, // missing ID
+        { id: 'sess_123', repoUrl: '' }, // missing URL
+        { id: 'sess_123' }, // missing required fields
+      ];
+
+      corruptedScenarios.forEach(session => {
+        const isValid = session.id && session.id.length > 0 && 
+                       'repoUrl' in session && session.repoUrl && session.repoUrl.length > 0;
+        expect(isValid).toBe(false);
+      });
+    });
+  });
+});

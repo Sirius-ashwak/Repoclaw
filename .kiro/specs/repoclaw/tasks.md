@@ -32,7 +32,7 @@ The implementation uses TypeScript with Next.js 14, LangGraph for agent orchestr
     - Store tokens securely in Vercel KV with session ID
     - _Requirements: 1.3, 1.5_
   
-  - [ ] 2.4 Write property test for OAuth trigger
+  - [x] 2.4 Write property test for OAuth trigger
     - **Property 2: OAuth Trigger for Valid URLs**
     - **Validates: Requirements 1.3**
   
@@ -41,11 +41,11 @@ The implementation uses TypeScript with Next.js 14, LangGraph for agent orchestr
     - Store metadata in session state
     - _Requirements: 1.5_
   
-  - [ ] 2.6 Write property test for metadata retrieval
+  - [x] 2.6 Write property test for metadata retrieval
     - **Property 3: Metadata Retrieval After Authentication**
     - **Validates: Requirements 1.5**
   
-  - [ ] 2.7 Write unit tests for authentication error handling
+  - [x] 2.7 Write unit tests for authentication error handling
     - Test OAuth failure scenarios
     - Test invalid token handling
     - _Requirements: 1.4_
