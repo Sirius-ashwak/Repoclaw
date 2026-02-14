@@ -429,26 +429,26 @@ The implementation uses TypeScript with Next.js 14, LangGraph for agent orchestr
     - Test API failures with retries
     - _Requirements: 1.4, 5.4, 10.1, 10.4_
 
-- [ ] 14. Implement performance monitoring and timing
-  - [ ] 14.1 Add timing instrumentation to agents
+- [x] 14. Implement performance monitoring and timing
+  - [x] 14.1 Add timing instrumentation to agents
     - Record start and end times for each agent
     - Calculate execution duration
     - _Requirements: 12.2, 12.3, 12.4, 12.5_
   
-  - [ ] 14.2 Write property test for individual agent timing
+  - [x] 14.2 Write property test for individual agent timing
     - **Property 29: Individual Agent Timing**
     - **Validates: Requirements 12.2, 12.3, 12.4, 12.5**
   
-  - [ ] 14.3 Add end-to-end timing tracking
+  - [x] 14.3 Add end-to-end timing tracking
     - Record pipeline start and completion times
     - Display elapsed time on Progress Board
     - _Requirements: 12.1_
   
-  - [ ] 14.4 Write property test for end-to-end execution time
+  - [x] 14.4 Write property test for end-to-end execution time
     - **Property 28: End-to-End Execution Time**
     - **Validates: Requirements 12.1**
   
-  - [ ] 14.5 Implement timeout notifications
+  - [x] 14.5 Implement timeout notifications
     - Display warning if pipeline exceeds 3 minutes
     - Show per-agent timeout warnings
     - _Requirements: 12.6_
