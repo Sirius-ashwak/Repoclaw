@@ -208,3 +208,7 @@ export default function ArtifactCarousel({ artifacts, onExport }: ArtifactCarous
     </div>
   );
 }
+
+
+// Named export for compatibility
+export { ArtifactCarousel };

@@ -125,3 +125,7 @@ export default function ModeSelector({ onModeSelect, disabled = false }: ModeSel
     </div>
   );
 }
+
+
+// Named export for compatibility
+export { ModeSelector };

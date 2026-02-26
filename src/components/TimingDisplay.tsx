@@ -136,3 +136,7 @@ export default function TimingDisplay({
     </div>
   );
 }
+
+
+// Named export for compatibility
+export { TimingDisplay };

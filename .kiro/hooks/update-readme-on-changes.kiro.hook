@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Update README on Vital Changes",
+  "description": "Automatically prompts to update README.md when vital project files like package.json, config files, or core source files are modified",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A vital project file was just modified. Review the changes and update README.md if any important information needs to be reflected there, such as new dependencies, configuration changes, setup instructions, or API changes."
+  },
+  "workspaceFolderName": "repoclaw",
+  "shortName": "update-readme-on-changes"
+}

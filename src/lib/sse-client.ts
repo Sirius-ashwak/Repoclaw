@@ -171,3 +171,11 @@ export function createPipelineSSEClient(pipelineId: string): SSEClient {
   const url = `${baseUrl}/api/pipeline/stream?pipelineId=${pipelineId}`;
   return new SSEClient(url);
 }
+
+/**
+ * Simple helper to connect to SSE endpoint
+ * Returns EventSource for direct usage
+ */
+export function connectSSE(url: string): EventSource {
+  return new EventSource(url);
+}

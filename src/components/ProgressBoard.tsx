@@ -112,11 +112,12 @@ export default function ProgressBoard({
             <div
               key={agentType}
               className={`
-                p-4 rounded-lg border-2 transition-all
-                ${isActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
+                p-4 rounded-lg border-2 transition-smooth hover-lift animate-fade-in
+                ${isActive ? 'border-blue-500 bg-blue-50 animate-pulse-glow' : 'border-gray-200'}
                 ${status === 'completed' ? 'bg-green-50' : ''}
                 ${status === 'failed' ? 'bg-red-50' : ''}
               `}
+              style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -124,7 +125,7 @@ export default function ProgressBoard({
                   <div
                     className={`
                       w-10 h-10 rounded-full flex items-center justify-center
-                      text-white font-bold ${getStatusColor(status)}
+                      text-white font-bold transition-smooth ${getStatusColor(status)}
                     `}
                   >
                     {getStatusIcon(status)}
@@ -150,9 +151,9 @@ export default function ProgressBoard({
 
               {/* Artifact Previews */}
               {agentArtifacts.length > 0 && (
-                <div className="mt-3 pl-14 space-y-1">
+                <div className="mt-3 pl-14 space-y-1 animate-slide-in-right">
                   {agentArtifacts.map((artifact) => (
-                    <div key={artifact.id} className="text-sm text-gray-700">
+                    <div key={artifact.id} className="text-sm text-gray-700 transition-smooth hover:text-blue-600">
                       • {artifact.title}
                     </div>
                   ))}
@@ -165,9 +166,9 @@ export default function ProgressBoard({
 
       {/* Approval Prompt */}
       {pendingApproval && (
-        <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
+        <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg animate-slide-up">
           <div className="flex items-center space-x-2 mb-2">
-            <span className="text-2xl">⏸️</span>
+            <span className="text-2xl animate-pulse">⏸️</span>
             <h3 className="text-lg font-semibold">Approval Required</h3>
           </div>
           <p className="text-sm text-gray-700">
@@ -178,14 +179,14 @@ export default function ProgressBoard({
 
       {/* Pipeline Status Messages */}
       {pipelineStatus === 'completed' && (
-        <div className="mt-6 p-4 bg-green-50 border-2 border-green-400 rounded-lg text-center">
+        <div className="mt-6 p-4 bg-green-50 border-2 border-green-400 rounded-lg text-center animate-slide-up">
           <span className="text-2xl">🎉</span>
           <p className="text-lg font-semibold text-green-800">Pipeline Completed!</p>
         </div>
       )}
 
       {pipelineStatus === 'failed' && (
-        <div className="mt-6 p-4 bg-red-50 border-2 border-red-400 rounded-lg text-center">
+        <div className="mt-6 p-4 bg-red-50 border-2 border-red-400 rounded-lg text-center animate-slide-up">
           <span className="text-2xl">❌</span>
           <p className="text-lg font-semibold text-red-800">Pipeline Failed</p>
         </div>
@@ -193,3 +194,7 @@ export default function ProgressBoard({
     </div>
   );
 }
+
+
+// Named export for compatibility
+export { ProgressBoard };

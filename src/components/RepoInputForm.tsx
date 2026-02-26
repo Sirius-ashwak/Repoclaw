@@ -100,3 +100,7 @@ export default function RepoInputForm({ onSubmit, disabled = false }: RepoInputF
     </div>
   );
 }
+
+
+// Named export for compatibility
+export { RepoInputForm };

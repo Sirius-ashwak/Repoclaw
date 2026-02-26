@@ -182,3 +182,7 @@ export function PipelineTimeoutAlert({
     </div>
   );
 }
+
+
+// Named export for compatibility
+export { TimeoutNotification };

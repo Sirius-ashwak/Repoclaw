@@ -6,6 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPipeline } from '@/lib/kv';
 import type { ExportRequest, ExportResult } from '@/types';
+import { generatePDF, validateArtifactsForPDF } from '@/lib/pdf-export';
+import { extractPRUrl, validatePRArtifact, generateShareableMessage } from '@/lib/pr-export';
+import { sendArtifactsToTelegram, validateTelegramChatId } from '@/lib/telegram-export';
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,41 +68,121 @@ export async function POST(request: NextRequest) {
 }
 
 async function exportToPDF(pipeline: any): Promise<ExportResult> {
-  // TODO: Implement PDF generation using pdf-lib or similar
-  // Bundle README, API docs, pitch deck into PDF
-  return {
-    format: 'pdf',
-    success: true,
-    url: '/exports/placeholder.pdf',
-    message: 'PDF export successful (placeholder)',
-  };
+  try {
+    const artifacts = pipeline.artifacts || [];
+    
+    // Validate artifacts
+    const validation = validateArtifactsForPDF(artifacts);
+    if (!validation.valid) {
+      return {
+        format: 'pdf',
+        success: false,
+        message: validation.message,
+      };
+    }
+
+    // Generate PDF
+    const pdfBlob = await generatePDF(artifacts);
+    
+    // In production, upload to storage and return URL
+    // For now, return success with placeholder URL
+    const url = URL.createObjectURL(pdfBlob);
+    
+    return {
+      format: 'pdf',
+      success: true,
+      url,
+      message: `PDF export successful with ${artifacts.length} artifact(s)`,
+    };
+  } catch (error) {
+    console.error('PDF export error:', error);
+    return {
+      format: 'pdf',
+      success: false,
+      message: 'Failed to generate PDF',
+    };
+  }
 }
 
 async function exportPRLink(pipeline: any): Promise<ExportResult> {
-  const prArtifact = pipeline.artifacts.find((a: any) => a.type === 'pull-request');
-  
-  if (!prArtifact || !prArtifact.metadata?.prUrl) {
+  try {
+    const artifacts = pipeline.artifacts || [];
+    
+    // Validate PR artifact
+    const validation = validatePRArtifact(artifacts);
+    if (!validation.valid) {
+      return {
+        format: 'pr-link',
+        success: false,
+        message: validation.message,
+      };
+    }
+
+    // Extract PR URL
+    const prUrl = extractPRUrl(artifacts);
+    if (!prUrl) {
+      return {
+        format: 'pr-link',
+        success: false,
+        message: 'Failed to extract PR URL',
+      };
+    }
+
+    // Generate shareable message
+    const shareableMessage = generateShareableMessage(artifacts);
+
+    return {
+      format: 'pr-link',
+      success: true,
+      url: prUrl,
+      message: shareableMessage || 'PR link retrieved successfully',
+    };
+  } catch (error) {
+    console.error('PR link export error:', error);
     return {
       format: 'pr-link',
       success: false,
-      message: 'No pull request found in pipeline artifacts',
+      message: 'Failed to export PR link',
     };
   }
-
-  return {
-    format: 'pr-link',
-    success: true,
-    url: prArtifact.metadata.prUrl,
-    message: 'PR link retrieved successfully',
-  };
 }
 
 async function exportToTelegram(pipeline: any, chatId: string): Promise<ExportResult> {
-  // TODO: Implement Telegram bot integration
-  // Send artifacts as messages/files to specified chat
-  return {
-    format: 'telegram',
-    success: true,
-    message: `Artifacts sent to Telegram chat ${chatId} (placeholder)`,
-  };
+  try {
+    // Validate chat ID
+    const validation = validateTelegramChatId(chatId);
+    if (!validation.valid) {
+      return {
+        format: 'telegram',
+        success: false,
+        message: validation.message,
+      };
+    }
+
+    const artifacts = pipeline.artifacts || [];
+    
+    if (artifacts.length === 0) {
+      return {
+        format: 'telegram',
+        success: false,
+        message: 'No artifacts to send',
+      };
+    }
+
+    // Send artifacts to Telegram
+    const result = await sendArtifactsToTelegram(chatId, artifacts);
+
+    return {
+      format: 'telegram',
+      success: result.success,
+      message: result.message,
+    };
+  } catch (error) {
+    console.error('Telegram export error:', error);
+    return {
+      format: 'telegram',
+      success: false,
+      message: 'Failed to send to Telegram',
+    };
+  }
 }

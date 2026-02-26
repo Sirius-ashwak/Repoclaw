@@ -190,3 +190,7 @@ export default function DiffViewer({
     </div>
   );
 }
+
+
+// Named export for compatibility
+export { DiffViewer };
