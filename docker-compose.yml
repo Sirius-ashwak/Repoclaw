@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # LocalStack - Local AWS cloud stack for development
+  localstack:
+    image: localstack/localstack:latest
+    container_name: repoclaw-localstack
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services port range
+    environment:
+      - SERVICES=dynamodb,s3,lambda,translate,polly,bedrock
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - LAMBDA_EXECUTOR=docker
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AWS_DEFAULT_REGION=ap-south-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    volumes:
+      - "./localstack-data:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - repoclaw-network
+
+  # Ollama - Local LLM for offline mode testing
+  ollama:
+    image: ollama/ollama:latest
+    container_name: repoclaw-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - repoclaw-network
+    command: serve
+
+networks:
+  repoclaw-network:
+    driver: bridge
+
+volumes:
+  ollama-data:
+    driver: local

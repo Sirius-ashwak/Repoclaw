@@ -1,6 +1,8 @@
 /**
  * PitchAgent
  * Generates pitch materials: architecture diagrams, slide decks, and scripts
+ * Phase 2: Strict 6-slide deck, AWS services in diagrams,
+ * Placement mode 2-minute walkthrough, translation-ready scripts
  */
 
 import { Agent } from './base';
@@ -169,50 +171,85 @@ export class PitchAgent extends Agent {
     NextJS[Next.js Application]
     API[API Routes]
     DB[(Database)]
-    External[External Services]
+    S3[AWS S3 - Artifacts]
+    Bedrock[AWS Bedrock - AI]
+    DynamoDB[AWS DynamoDB - Sessions]
     
     User -->|HTTP/HTTPS| NextJS
     NextJS -->|Server-Side Rendering| User
     NextJS -->|API Calls| API
     API -->|Queries| DB
-    API -->|Integration| External
+    API -->|Storage| S3
+    API -->|AI Operations| Bedrock
+    API -->|Sessions| DynamoDB
     
     style NextJS fill:#0070f3
     style API fill:#10b981
-    style DB fill:#f59e0b`;
-    } else if (stackInfo?.framework === 'React') {
+    style DB fill:#f59e0b
+    style S3 fill:#e47911
+    style Bedrock fill:#8b5cf6
+    style DynamoDB fill:#3b82f6`;
+    } else if (stackInfo?.framework === 'React' || stackInfo?.framework === 'Vue' || stackInfo?.framework === 'Angular') {
       mermaidCode = `graph TB
     User[User Browser]
-    React[React Application]
+    Frontend[${stackInfo.framework} Application]
     API[Backend API]
     DB[(Database)]
+    S3[AWS S3]
+    Lambda[AWS Lambda]
     
-    User -->|Interactions| React
-    React -->|API Requests| API
-    API -->|Data| React
+    User -->|Interactions| Frontend
+    Frontend -->|API Requests| API
+    API -->|Data| Frontend
     API -->|Queries| DB
+    API -->|Files| S3
+    API -->|Compute| Lambda
     
-    style React fill:#61dafb
+    style Frontend fill:#61dafb
     style API fill:#10b981
-    style DB fill:#f59e0b`;
+    style DB fill:#f59e0b
+    style S3 fill:#e47911
+    style Lambda fill:#f97316`;
+    } else if (stackInfo?.framework === 'Flask' || stackInfo?.framework === 'FastAPI') {
+      mermaidCode = `graph TB
+    Client[Client]
+    Gateway[API Gateway]
+    App[${stackInfo.framework} App]
+    DB[(Database)]
+    Lambda[AWS Lambda]
+    S3[AWS S3]
+    
+    Client -->|HTTPS| Gateway
+    Gateway -->|Route| App
+    App -->|Query| DB
+    App -->|Compute| Lambda
+    App -->|Storage| S3
+    
+    style App fill:#3776ab
+    style Gateway fill:#e47911
+    style DB fill:#f59e0b
+    style Lambda fill:#f97316
+    style S3 fill:#e47911`;
     } else {
-      // Generic architecture
       mermaidCode = `graph TB
     User[User]
     Frontend[Frontend Layer]
     Backend[Backend Layer]
     Data[(Data Layer)]
+    AWS[AWS Cloud Services]
     
     User -->|Requests| Frontend
     Frontend -->|API Calls| Backend
     Backend -->|Queries| Data
+    Backend -->|Cloud| AWS
     Data -->|Results| Backend
     Backend -->|Response| Frontend
     Frontend -->|Display| User
     
     style Frontend fill:#61dafb
     style Backend fill:#10b981
-    style Data fill:#f59e0b`;
+    style Data fill:#f59e0b
+    style AWS fill:#e47911`;
     }
 
     const artifact: PitchArtifact = {
@@ -243,60 +280,57 @@ export class PitchAgent extends Agent {
 
     const slides: PitchSlide[] = [];
 
+    // Phase 2: Strict 6-slide structure: Title, Problem, Solution, Architecture, Demo, Impact
+
     // Slide 1: Title
     slides.push({
       title: name,
-      content: description || purpose.description,
+      content: `${description || purpose.description}\n\n**Built with:** ${purpose.techStack.join(', ')}`,
       layout: 'title',
     });
 
-    // Slide 2: Problem/Overview
+    // Slide 2: Problem
     slides.push({
-      title: 'Overview',
-      content: `${purpose.description}\n\n**Key Highlights:**\n${purpose.keyHighlights.map(h => `- ${h}`).join('\n')}`,
+      title: 'The Problem',
+      content: context.mode === 'hackathon'
+        ? `Developers face challenges in:\n- Creating professional documentation quickly\n- Deploying demos under time pressure\n- Preparing pitch materials for presentations\n\n**${name}** addresses these gaps with AI-powered automation.`
+        : context.mode === 'placement'
+        ? `Key challenges addressed:\n- ${purpose.keyHighlights.map((h: string) => h).join('\n- ')}\n\nThis project demonstrates ability to identify and solve real problems.`
+        : `Code quality challenges identified:\n- Technical debt accumulation\n- Inconsistent documentation\n- Missing test coverage\n\n**Goal:** Systematic improvement of code quality.`,
       layout: 'content',
     });
 
-    // Slide 3: Features
+    // Slide 3: Solution
     slides.push({
-      title: 'Features',
-      content: purpose.features.map(f => `- ${f}`).join('\n'),
+      title: 'The Solution',
+      content: `**${name}** provides:\n\n${purpose.features.slice(0, 5).map((f: string) => `- ${f}`).join('\n')}\n\n**Tech Stack:** ${purpose.techStack.join(' | ')}`,
       layout: 'content',
     });
 
-    // Slide 4: Tech Stack
-    slides.push({
-      title: 'Technology Stack',
-      content: purpose.techStack.map(t => `- ${t}`).join('\n'),
-      layout: 'content',
-    });
-
-    // Slide 5: Architecture (if diagram exists)
+    // Slide 4: Architecture
     slides.push({
       title: 'Architecture',
-      content: 'System architecture and component interaction',
+      content: `System architecture with AWS cloud services:\n- ${purpose.techStack.join('\n- ')}\n- AWS Bedrock for AI\n- AWS DynamoDB for state\n- AWS S3 for artifacts`,
       layout: 'image',
     });
 
-    // Slide 6: Demo (if available)
-    if (demoUrl) {
-      slides.push({
-        title: 'Live Demo',
-        content: `Check out the live demo:\n\n${demoUrl}`,
-        layout: 'content',
-      });
-    }
-
-    // Slide 7: Conclusion
-    const conclusionContent = context.mode === 'hackathon' 
-      ? 'Thank you! Ready to innovate together.'
-      : context.mode === 'placement'
-      ? 'Thank you! Looking forward to contributing to your team.'
-      : 'Thank you! Ready to improve and scale.';
-
+    // Slide 5: Demo
     slides.push({
-      title: 'Thank You',
-      content: conclusionContent,
+      title: 'Demo',
+      content: demoUrl
+        ? `Live demo available at:\n\n**${demoUrl}**\n\nKey workflows demonstrated:\n- Repository analysis\n- Documentation generation\n- Deployment automation`
+        : `Key workflows:\n\n1. Submit repository URL\n2. AI analyzes code and generates materials\n3. Review and approve changes\n4. Export artifacts and create PR`,
+      layout: 'content',
+    });
+
+    // Slide 6: Impact
+    slides.push({
+      title: 'Impact',
+      content: context.mode === 'hackathon'
+        ? `**Results:**\n- Complete launch package in under 5 minutes\n- Professional documentation generated automatically\n- AWS-powered deployment and AI analysis\n\n**Thank you!** Questions?`
+        : context.mode === 'placement'
+        ? `**What I learned:**\n- Building production-ready applications\n- ${purpose.techStack.join(', ')} expertise\n- Clean code and testing practices\n\n**Thank you!** Looking forward to contributing to your team.`
+        : `**Improvements achieved:**\n- Better code structure and organization\n- Enhanced documentation coverage\n- Reduced technical debt\n\n**Thank you!** Ready to improve and scale.`,
       layout: 'title',
     });
 

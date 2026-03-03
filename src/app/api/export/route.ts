@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPipeline } from '@/lib/kv';
+import { DynamoDBSessionManager } from '@/lib/aws/dynamodb';
+import { S3ArtifactManager } from '@/lib/aws/s3';
 import type { ExportRequest, ExportResult } from '@/types';
 import { generatePDF, validateArtifactsForPDF } from '@/lib/pdf-export';
 import { extractPRUrl, validatePRArtifact, generateShareableMessage } from '@/lib/pr-export';
@@ -26,7 +27,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const pipeline = await getPipeline(pipelineId);
+    const dynamodb = new DynamoDBSessionManager();
+    const pipeline = await dynamodb.getPipeline(pipelineId);
     if (!pipeline) {
       return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
     }

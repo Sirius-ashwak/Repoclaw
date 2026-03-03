@@ -10,6 +10,8 @@ import { ExportConfirmation, ExportResult } from '@/components/ExportConfirmatio
 import { TimingDisplay } from '@/components/TimingDisplay';
 import { TimeoutNotification } from '@/components/TimeoutNotification';
 import { LoadingSpinner, LoadingOverlay } from '@/components/LoadingSpinner';
+import { LanguageSelector, SupportedLanguage } from '@/components/LanguageSelector';
+import { OfflineModeIndicator, ConnectivityMode } from '@/components/OfflineModeIndicator';
 import { connectSSE } from '@/lib/sse-client';
 import { 
   loadSession, 
@@ -35,6 +37,8 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pipelineId, setPipelineId] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>('en');
+  const [connectivityMode, setConnectivityMode] = useState<ConnectivityMode>('online');
   const [pipelineState, setPipelineState] = useState<Partial<PipelineState> | null>(null);
   const [pendingApproval, setPendingApproval] = useState<ApprovalGate | null>(null);
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
@@ -120,7 +124,7 @@ export default function Home() {
       const response = await fetch('/api/pipeline/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, mode }),
+        body: JSON.stringify({ sessionId, mode, language: selectedLanguage }),
       });
 
       const data = await response.json();
@@ -308,11 +312,18 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <header className="text-center mb-12">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            RepoClaw
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Transform your GitHub repository into production-ready deliverables
+          <div className="flex items-center justify-between mb-2">
+            <div />
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              RepoClaw
+            </h1>
+            <OfflineModeIndicator mode={connectivityMode} />
+          </div>
+          <p className="text-lg text-muted-foreground mb-2">
+            Transform your GitHub repository into launch-ready materials in under 5 minutes
+          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Powered by AWS Bedrock | Supports Hindi, Tamil, Telugu, Bengali, Marathi
           </p>
         </header>
 
@@ -361,6 +372,15 @@ export default function Home() {
                 Select Your Mode
               </h2>
               <ModeSelector onSelect={handleModeSelect} />
+              <div className="max-w-md mx-auto mt-8">
+                <LanguageSelector
+                  value={selectedLanguage}
+                  onChange={setSelectedLanguage}
+                />
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 text-center">
+                  Documentation and pitch materials will be translated to your selected language
+                </p>
+              </div>
             </div>
           )}
 

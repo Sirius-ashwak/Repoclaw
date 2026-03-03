@@ -1,17 +1,20 @@
 /**
  * POST /api/pipeline/start
  * Initializes SupervisorAgent with selected mode and creates pipeline state
+ * Phase 2: Uses DynamoDB for state, Bedrock for LLM, supports language selection
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, createPipelineState, generateId } from '@/lib/kv';
-import type { StartPipelineRequest, StartPipelineResponse } from '@/types';
+import { DynamoDBSessionManager } from '@/lib/aws/dynamodb';
+import type { StartPipelineResponse } from '@/types';
 import { isValidMode } from '@/lib/mode-config';
+
+const SUPPORTED_LANGUAGES = ['en', 'hi', 'ta', 'te', 'bn', 'mr'];
 
 export async function POST(request: NextRequest) {
   try {
-    const body: StartPipelineRequest = await request.json();
-    const { sessionId, mode } = body;
+    const body = await request.json();
+    const { sessionId, mode, language = 'en' } = body;
 
     // Validate session ID
     if (!sessionId) {
@@ -29,8 +32,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get session from KV
-    const session = await getSession(sessionId);
+    // Validate language
+    if (!SUPPORTED_LANGUAGES.includes(language)) {
+      return NextResponse.json(
+        { error: `Unsupported language. Supported: ${SUPPORTED_LANGUAGES.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Get session from DynamoDB
+    const dynamodb = new DynamoDBSessionManager();
+    const session = await dynamodb.getSession(sessionId);
 
     if (!session) {
       return NextResponse.json(
@@ -55,37 +67,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate pipeline ID
-    const pipelineId = generateId('pipe_');
+    const pipelineId = `pipe_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-    // Create pipeline state in KV
-    await createPipelineState({
+    // Create pipeline state in DynamoDB
+    await dynamodb.createPipeline({
       id: pipelineId,
       sessionId,
-      mode,
       status: 'initializing',
       currentAgent: null,
-      agentResults: {
-        analyze: null,
-        docs: null,
-        demo: null,
-        pitch: null,
-        supervisor: null,
-      },
+      results: [],
       approvalGates: [],
       artifacts: [],
-      error: null,
       startedAt: Date.now(),
       completedAt: null,
-      timestamps: {
-        initialized: Date.now(),
+      error: null,
+      metadata: {
+        mode,
+        repoUrl: session.repoUrl,
+        totalExecutionTime: 0,
+        bedrockCost: 0,
+        s3StorageUsed: 0,
       },
     });
 
-    // Update session with pipeline ID
-    await createSession({
-      ...session,
+    // Update session with pipeline ID and language
+    await dynamodb.updateSession(sessionId, {
       selectedMode: mode,
       pipelineId,
+      language,
     });
 
     // Build SSE stream URL

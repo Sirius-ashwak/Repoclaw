@@ -1,6 +1,8 @@
 /**
  * DocsAgent
  * Generates and improves documentation (README, API docs)
+ * Phase 2: STAR stories for Placement mode, resume-style README,
+ * interview Q&A, inline comments for Refactor mode, Python support
  */
 
 import { Agent } from './base';
@@ -39,6 +41,15 @@ export class DocsAgent extends Agent {
       const apiDocsArtifact = await this.generateApiDocs(octokit, owner, name);
       if (apiDocsArtifact) {
         artifacts.push(apiDocsArtifact);
+      }
+
+      // Phase 2: Mode-specific documentation
+      if (context.mode === 'placement') {
+        const starArtifact = await this.generateSTARStories(octokit, owner, name, context);
+        if (starArtifact) artifacts.push(starArtifact);
+
+        const qaArtifact = await this.generateInterviewQA(context);
+        if (qaArtifact) artifacts.push(qaArtifact);
       }
 
       this.log('Documentation generation complete', { artifactCount: artifacts.length });
@@ -204,6 +215,33 @@ export class DocsAgent extends Agent {
       content += `\`\`\`\n\n`;
     }
 
+    // Phase 2: Placement mode - resume-style additions
+    if (mode === 'placement') {
+      content += `## 💼 Key Technical Skills\n\n`;
+      if (stackInfo?.dependencies?.length > 0) {
+        const topDeps = stackInfo.dependencies.slice(0, 10);
+        content += topDeps.map((d: string) => `\`${d}\``).join(' | ');
+        content += `\n\n`;
+      }
+
+      content += `## 📊 Project Metrics\n\n`;
+      content += `| Metric | Value |\n`;
+      content += `|--------|-------|\n`;
+      content += `| Language | ${stackInfo?.primaryLanguage || 'JavaScript'} |\n`;
+      content += `| Framework | ${stackInfo?.framework || 'N/A'} |\n`;
+      content += `| Dependencies | ${stackInfo?.dependencies?.length || 0} |\n`;
+      content += `| Tests | ${stackInfo?.hasTests ? 'Yes' : 'No'} |\n\n`;
+    }
+
+    // Phase 2: Refactor mode - code quality sections
+    if (mode === 'refactor') {
+      content += `## 🔧 Code Quality\n\n`;
+      content += `This project follows best practices for code quality:\n`;
+      content += `- Consistent code formatting\n`;
+      content += `- Modular architecture\n`;
+      content += `- Type safety with ${stackInfo?.primaryLanguage === 'TypeScript' ? 'TypeScript' : 'JSDoc'}\n\n`;
+    }
+
     // Add contributing section
     content += `## 🤝 Contributing\n\n`;
     content += `Contributions are welcome! Please feel free to submit a Pull Request.\n\n`;
@@ -286,6 +324,140 @@ export class DocsAgent extends Agent {
     };
 
     return artifact;
+  }
+
+  /**
+   * Phase 2: Generate STAR-format stories from commit history
+   * Situation-Task-Action-Result stories for interview preparation
+   */
+  private async generateSTARStories(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    context: AgentContext
+  ): Promise<DocsArtifact | null> {
+    try {
+      const { data: commits } = await octokit.repos.listCommits({
+        owner,
+        repo,
+        per_page: 50,
+      });
+
+      if (commits.length < 3) return null;
+
+      // Group commits by feature/theme based on commit messages
+      const features = this.extractFeaturesFromCommits(commits);
+
+      // Generate 3-5 STAR stories
+      const stories = features.slice(0, 5).map((feature, i) => {
+        return `### Story ${i + 1}: ${feature.title}\n\n` +
+          `**Situation:** Working on ${context.repoMetadata.name}, I identified a need for ${feature.title.toLowerCase()}.\n\n` +
+          `**Task:** ${feature.task}\n\n` +
+          `**Action:** ${feature.action}\n\n` +
+          `**Result:** ${feature.result}\n`;
+      });
+
+      if (stories.length === 0) return null;
+
+      const content = `# STAR Interview Stories\n\n` +
+        `Based on the development history of **${context.repoMetadata.name}**\n\n` +
+        stories.join('\n---\n\n');
+
+      return {
+        id: `star_stories_${Date.now()}`,
+        type: 'readme' as any,
+        title: 'STAR Interview Stories',
+        content,
+        metadata: {
+          original: null,
+          generated: content,
+          diff: { hunks: [], additions: content.split('\n').length, deletions: 0 },
+        },
+        createdAt: Date.now(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Extract feature themes from commits
+   */
+  private extractFeaturesFromCommits(
+    commits: any[]
+  ): Array<{ title: string; task: string; action: string; result: string }> {
+    const featureKeywords = [
+      { pattern: /feat|feature|add|implement/i, prefix: 'Feature Implementation' },
+      { pattern: /fix|bug|resolve|patch/i, prefix: 'Bug Resolution' },
+      { pattern: /refactor|improve|optimize|perf/i, prefix: 'Code Optimization' },
+      { pattern: /test|spec|coverage/i, prefix: 'Testing & Quality' },
+      { pattern: /doc|readme|comment/i, prefix: 'Documentation' },
+      { pattern: /deploy|ci|cd|build/i, prefix: 'Deployment & CI/CD' },
+    ];
+
+    const features: Array<{ title: string; task: string; action: string; result: string }> = [];
+    const usedPatterns = new Set<string>();
+
+    for (const commit of commits) {
+      const msg = commit.commit?.message || '';
+      for (const kw of featureKeywords) {
+        if (kw.pattern.test(msg) && !usedPatterns.has(kw.prefix)) {
+          usedPatterns.add(kw.prefix);
+          const shortMsg = msg.split('\n')[0].substring(0, 80);
+          features.push({
+            title: kw.prefix,
+            task: `I needed to ${shortMsg.toLowerCase()}.`,
+            action: `I implemented changes across the codebase, focusing on clean code practices and thorough testing.`,
+            result: `Successfully delivered the ${kw.prefix.toLowerCase()}, improving overall project quality.`,
+          });
+          break;
+        }
+      }
+    }
+
+    return features;
+  }
+
+  /**
+   * Phase 2: Generate interview Q&A set
+   */
+  private async generateInterviewQA(
+    context: AgentContext
+  ): Promise<DocsArtifact | null> {
+    const { name, description, language } = context.repoMetadata;
+    const stackInfo = context.previousResults?.analyze?.metadata?.stack;
+
+    const questions = [
+      { q: `What is ${name} and what problem does it solve?`, a: `${name} is ${description || 'a software project'} built with ${stackInfo?.framework || language || 'modern web technologies'}.` },
+      { q: `What was the most challenging part of building ${name}?`, a: `The most challenging aspect was designing a scalable architecture that could handle the core functionality while maintaining clean, testable code.` },
+      { q: `How did you choose your tech stack?`, a: `I chose ${stackInfo?.framework || 'the current stack'} for its strong ecosystem, ${stackInfo?.primaryLanguage || 'JavaScript'} for type safety, and focused on developer experience.` },
+      { q: `How do you handle errors in this application?`, a: `The application uses comprehensive error handling with try-catch blocks, custom error types, and user-friendly error messages.` },
+      { q: `What would you improve if you had more time?`, a: `I would add more comprehensive testing, implement performance monitoring, and enhance the CI/CD pipeline.` },
+      { q: `How did you approach testing?`, a: `I used ${stackInfo?.hasTests ? 'unit tests and integration tests' : 'a pragmatic approach to testing'} focusing on critical paths and edge cases.` },
+      { q: `Can you walk me through the architecture?`, a: `The project follows a ${stackInfo?.framework === 'Next.js' ? 'server-side rendered React' : 'modular'} architecture with clear separation of concerns.` },
+      { q: `How do you handle state management?`, a: `State is managed using ${stackInfo?.framework === 'React' || stackInfo?.framework === 'Next.js' ? 'React hooks and context' : 'appropriate patterns for the framework'}.` },
+      { q: `What security considerations did you address?`, a: `I implemented input validation, authentication flows, and secure data handling practices throughout the application.` },
+      { q: `How would you scale this application?`, a: `The architecture supports horizontal scaling through ${stackInfo?.framework === 'Next.js' ? 'serverless deployment on AWS' : 'containerized deployment'} with caching and database optimization.` },
+      { q: `What CI/CD practices do you follow?`, a: `The project uses automated testing, linting, and deployment pipelines to ensure code quality and rapid iteration.` },
+      { q: `How do you document your code?`, a: `I maintain comprehensive README documentation, inline code comments for complex logic, and API documentation for public interfaces.` },
+    ];
+
+    const content = `# Interview Q&A - ${name}\n\n` +
+      `Prepared answers for common interview questions about this project.\n\n` +
+      questions.map((item, i) => `## Q${i + 1}: ${item.q}\n\n**A:** ${item.a}\n`).join('\n');
+
+    return {
+      id: `interview_qa_${Date.now()}`,
+      type: 'readme' as any,
+      title: 'Interview Q&A',
+      content,
+      metadata: {
+        original: null,
+        generated: content,
+        diff: { hunks: [], additions: content.split('\n').length, deletions: 0 },
+      },
+      createdAt: Date.now(),
+    };
   }
 
   /**

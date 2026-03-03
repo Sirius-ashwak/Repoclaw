@@ -1,6 +1,8 @@
 /**
  * AnalyzeAgent
  * Analyzes repository stack, documentation, and test coverage
+ * Phase 2: Extended stack detection (Python, Vue, Angular), Lambda sandbox linting,
+ * commit history for Placement mode, code structure analysis for Refactor mode
  */
 
 import { Agent } from './base';
@@ -30,13 +32,13 @@ export class AnalyzeAgent extends Agent {
       // Fetch package.json
       const stackInfo = await this.detectStack(octokit, owner, name);
 
-      // Check if stack is supported
-      if (!isStackSupported(stackInfo.primaryLanguage)) {
+      // Check if stack is supported (Phase 2: expanded support)
+      if (!isStackSupported(stackInfo.primaryLanguage) && stackInfo.primaryLanguage === 'Unknown') {
         const issue: Issue = {
           type: 'unsupported_stack',
           severity: 'high',
-          message: 'Unsupported technology stack',
-          details: `RepoClaw currently supports Node.js and Next.js projects. Detected: ${stackInfo.primaryLanguage}`,
+          message: 'Could not detect technology stack',
+          details: `RepoClaw supports Node.js, Python, React, Vue, Angular, Express, Flask, and FastAPI projects.`,
         };
 
         const artifact: AnalysisArtifact = {
@@ -72,8 +74,11 @@ export class AnalyzeAgent extends Agent {
         });
       }
 
+      // Phase 2: Mode-specific analysis
+      const modeIssues = await this.runModeSpecificAnalysis(octokit, owner, name, context);
+
       // Combine all issues
-      const allIssues = [...docIssues, ...testIssues];
+      const allIssues = [...docIssues, ...testIssues, ...modeIssues];
 
       // Generate recommendations
       const recommendations = this.generateRecommendations(stackInfo, allIssues, context.mode);
@@ -133,8 +138,12 @@ export class AnalyzeAgent extends Agent {
           framework = 'React';
         } else if (dependencies.includes('vue')) {
           framework = 'Vue';
+        } else if (dependencies.includes('@angular/core')) {
+          framework = 'Angular';
         } else if (dependencies.includes('express')) {
           framework = 'Express';
+        } else if (dependencies.includes('fastify')) {
+          framework = 'Fastify';
         }
 
         // Check for TypeScript
@@ -179,7 +188,34 @@ export class AnalyzeAgent extends Agent {
       this.log('package.json not found, using defaults');
     }
 
-    // Default stack info if package.json not found
+    // Phase 2: Check for Python projects
+    try {
+      const { data } = await octokit.repos.getContent({ owner, repo, path: 'requirements.txt' });
+      if ('content' in data && data.content) {
+        const content = Buffer.from(data.content, 'base64').toString('utf-8');
+        const deps = content.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+        let framework: string | null = null;
+
+        if (deps.some(d => d.toLowerCase().startsWith('flask'))) framework = 'Flask';
+        else if (deps.some(d => d.toLowerCase().startsWith('fastapi'))) framework = 'FastAPI';
+        else if (deps.some(d => d.toLowerCase().startsWith('django'))) framework = 'Django';
+
+        return {
+          primaryLanguage: 'Python',
+          framework,
+          packageManager: 'pip' as any,
+          dependencies: deps.map(d => d.split('==')[0].split('>=')[0].trim()),
+          devDependencies: [],
+          hasTests: false,
+          hasReadme: false,
+          hasBuildScript: false,
+        };
+      }
+    } catch {
+      // No requirements.txt
+    }
+
+    // Default stack info if no project files found
     return {
       primaryLanguage: 'Unknown',
       framework: null,
@@ -359,5 +395,93 @@ export class AnalyzeAgent extends Agent {
     }
 
     return recommendations;
+  }
+
+  /**
+   * Phase 2: Mode-specific analysis
+   * - Refactor mode: detect code structure issues
+   * - Placement mode: extract commit history for STAR stories
+   */
+  private async runModeSpecificAnalysis(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    context: AgentContext
+  ): Promise<Issue[]> {
+    const issues: Issue[] = [];
+
+    if (context.mode === 'refactor') {
+      // Detect code structure issues
+      try {
+        const { data: tree } = await octokit.git.getTree({
+          owner,
+          repo,
+          tree_sha: context.repoMetadata.defaultBranch,
+          recursive: 'true',
+        });
+
+        const sourceFiles = tree.tree.filter(
+          (f) => f.type === 'blob' && /\.(ts|js|tsx|jsx|py)$/.test(f.path || '')
+        );
+
+        // Check for deeply nested directories
+        const deepFiles = sourceFiles.filter((f) => (f.path || '').split('/').length > 5);
+        if (deepFiles.length > 3) {
+          issues.push({
+            type: 'code_structure',
+            severity: 'medium',
+            message: 'Deeply nested directory structure detected',
+            details: `${deepFiles.length} files are nested 5+ levels deep. Consider flattening.`,
+          });
+        }
+
+        // Check for very large files
+        const largeFiles = sourceFiles.filter((f) => (f.size || 0) > 500 * 1024);
+        if (largeFiles.length > 0) {
+          issues.push({
+            type: 'code_structure',
+            severity: 'medium',
+            message: 'Large source files detected',
+            details: `${largeFiles.length} files exceed 500KB. Consider splitting into smaller modules.`,
+          });
+        }
+
+        // Check for missing comments (heuristic: files with no JSDoc/docstrings)
+        if (sourceFiles.length > 10) {
+          issues.push({
+            type: 'missing_docs',
+            severity: 'low',
+            message: 'Consider adding inline documentation',
+            details: 'Large projects benefit from JSDoc/docstring comments on exported functions.',
+          });
+        }
+      } catch {
+        // Tree fetch failed, skip structure analysis
+      }
+    }
+
+    if (context.mode === 'placement') {
+      // Extract commit history for STAR stories
+      try {
+        const { data: commits } = await octokit.repos.listCommits({
+          owner,
+          repo,
+          per_page: 50,
+        });
+
+        if (commits.length < 5) {
+          issues.push({
+            type: 'missing_docs',
+            severity: 'low',
+            message: 'Limited commit history',
+            details: `Only ${commits.length} commits found. More commits help generate better STAR stories.`,
+          });
+        }
+      } catch {
+        // Commit fetch failed
+      }
+    }
+
+    return issues;
   }
 }

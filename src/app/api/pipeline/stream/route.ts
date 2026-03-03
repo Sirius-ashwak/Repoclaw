@@ -1,13 +1,12 @@
 /**
  * GET /api/pipeline/stream
  * Server-Sent Events endpoint for real-time pipeline updates
+ * Phase 2: Uses DynamoDB for pipeline state polling
  */
 
 import { NextRequest } from 'next/server';
-import { getPipeline } from '@/lib/kv';
+import { DynamoDBSessionManager } from '@/lib/aws/dynamodb';
 import type { SSEEvent } from '@/types';
-
-export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -17,8 +16,9 @@ export async function GET(request: NextRequest) {
     return new Response('Pipeline ID is required', { status: 400 });
   }
 
-  // Verify pipeline exists
-  const pipeline = await getPipeline(pipelineId);
+  // Verify pipeline exists in DynamoDB
+  const dynamodb = new DynamoDBSessionManager();
+  const pipeline = await dynamodb.getPipeline(pipelineId);
   if (!pipeline) {
     return new Response('Pipeline not found', { status: 404 });
   }
@@ -32,17 +32,17 @@ export async function GET(request: NextRequest) {
         type: 'pipeline_started',
         data: {
           pipelineId: pipeline.id,
-          mode: pipeline.mode,
+          mode: pipeline.metadata.mode,
           status: pipeline.status,
         },
         timestamp: Date.now(),
       };
       controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialEvent)}\n\n`));
 
-      // Poll for pipeline updates
+      // Poll DynamoDB for pipeline updates
       const pollInterval = setInterval(async () => {
         try {
-          const currentPipeline = await getPipeline(pipelineId);
+          const currentPipeline = await dynamodb.getPipeline(pipelineId);
           
           if (!currentPipeline) {
             clearInterval(pollInterval);
@@ -57,9 +57,10 @@ export async function GET(request: NextRequest) {
               pipelineId: currentPipeline.id,
               status: currentPipeline.status,
               currentAgent: currentPipeline.currentAgent,
-              agentResults: currentPipeline.agentResults,
+              results: currentPipeline.results,
               artifacts: currentPipeline.artifacts,
               approvalGates: currentPipeline.approvalGates,
+              metadata: currentPipeline.metadata,
             },
             timestamp: Date.now(),
           };
@@ -74,6 +75,7 @@ export async function GET(request: NextRequest) {
                 status: currentPipeline.status,
                 artifacts: currentPipeline.artifacts,
                 error: currentPipeline.error,
+                metadata: currentPipeline.metadata,
               },
               timestamp: Date.now(),
             };

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
-import { getSession, updateSession } from '@/lib/kv';
+import { DynamoDBSessionManager } from '@/lib/aws/dynamodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,8 +27,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify session exists
-    const session = await getSession(state);
+    // Verify session exists in DynamoDB
+    const dynamodb = new DynamoDBSessionManager();
+    const session = await dynamodb.getSession(state);
     if (!session) {
       return NextResponse.redirect(
         new URL('/?error=invalid_session', request.url)
@@ -66,8 +67,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Store token in session
-    await updateSession(state, {
+    // Store token in DynamoDB session
+    await dynamodb.updateSession(state, {
       githubToken: tokenData.access_token,
     });
 
@@ -90,8 +91,8 @@ export async function GET(request: NextRequest) {
         repo,
       });
 
-      // Update session with metadata
-      await updateSession(state, {
+      // Update session with metadata in DynamoDB
+      await dynamodb.updateSession(state, {
         repoMetadata: {
           owner: repoData.owner.login,
           name: repoData.name,

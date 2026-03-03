@@ -1,11 +1,12 @@
 /**
  * POST /api/repo/connect
  * Handles repository URL submission and initiates OAuth flow
+ * Phase 2: Uses DynamoDB for session storage with 24-hour TTL
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAndParseGitHubUrl } from '@/lib/github';
-import { createSession, generateId } from '@/lib/kv';
+import { DynamoDBSessionManager } from '@/lib/aws/dynamodb';
 import type { ConnectRepoRequest, ConnectRepoResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -24,18 +25,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate session ID
-    const sessionId = generateId('sess_');
+    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-    // Create session in KV
-    await createSession({
+    // Create session in DynamoDB with 24-hour TTL
+    const dynamodb = new DynamoDBSessionManager();
+    await dynamodb.createSession({
       id: sessionId,
       repoUrl,
       repoMetadata: null,
       githubToken: '',
       selectedMode: null,
       pipelineId: null,
+      language: 'en',
       createdAt: Date.now(),
-      expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
     });
 
     // Build OAuth URL
