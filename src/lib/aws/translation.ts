@@ -14,6 +14,7 @@ import {
   OutputFormat,
   Engine,
   TextType,
+  VoiceId,
 } from '@aws-sdk/client-polly';
 import { getAWSConfig } from './config';
 import { S3ArtifactManager } from './s3';
@@ -196,7 +197,7 @@ export class TranslationService {
       Text: ssmlText,
       TextType: 'ssml' as TextType,
       OutputFormat: 'mp3' as OutputFormat,
-      VoiceId: selectedVoice,
+      VoiceId: selectedVoice as VoiceId,
       Engine: voiceConfig.engine,
       SampleRate: '22050',
     });
@@ -323,11 +324,12 @@ export class TranslationService {
 
     for (const term of TECHNICAL_TERMS) {
       // Use word boundary matching to avoid partial replacements
-      const regex = new RegExp(`\\b${this._escapeRegex(term)}\\b`, 'g');
-      if (regex.test(processed)) {
+      const pattern = `\\b${this._escapeRegex(term)}\\b`;
+      const testRegex = new RegExp(pattern, 'g');
+      if (testRegex.test(processed)) {
         const placeholder = `__TECH_TERM_${index}__`;
         termMap.set(placeholder, term);
-        processed = processed.replace(regex, placeholder);
+        processed = processed.replace(new RegExp(pattern, 'g'), placeholder);
         index++;
       }
     }

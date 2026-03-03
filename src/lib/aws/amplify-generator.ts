@@ -4,8 +4,6 @@
  * Detects project type and generates appropriate config with validation
  */
 
-import { BedrockLLMClient } from './bedrock';
-
 export type ProjectType = 'nextjs' | 'react' | 'vue' | 'angular' | 'express' | 'fastify' | 'flask' | 'fastapi' | 'unknown';
 
 export interface ProjectDetectionResult {
@@ -44,10 +42,8 @@ const BUILD_CONFIGS: Record<ProjectType, { buildCommand: string; outputDir: stri
 };
 
 export class AmplifyConfigGenerator {
-  private bedrock: BedrockLLMClient;
-
-  constructor(bedrock?: BedrockLLMClient) {
-    this.bedrock = bedrock || new BedrockLLMClient();
+  constructor() {
+    // No dependencies required - config generation is template-based
   }
 
   /**
